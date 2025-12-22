@@ -47,15 +47,8 @@ GUILD_ID = 1452643657931821059  # ID deines Discord-Servers
 
 @bot.event
 async def on_ready():
-    await load_cogs()
-    guild = discord.Object(id=GUILD_ID)
-    try:
-        synced = await bot.tree.sync(guild=guild)
-        print(f"Synced {len(synced)} commands for test server.")
-    except Exception as e:
-        print(f"Error syncing commands: {e}")
+    await bot.tree.sync()  # synchronisiert alle Slash-Commands
     print(f"Logged in as {bot.user}")
-
 
 async def main():
     print("Bot starting...")
