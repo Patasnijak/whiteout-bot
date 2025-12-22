@@ -31,12 +31,17 @@ def create_tables():
 create_tables()
 
 async def load_cogs():
-    cogs = ["olddb", "control", "alliance", "help"]
+   cogs = ["olddb", "control", "alliance", "help"]
+
+async def load_cogs():
     for cog in cogs:
         try:
             await bot.load_extension(f"cogs.{cog}")
         except Exception as e:
             print(f"Failed to load cog {cog}: {e}")
+
+# im Hauptteil des Codes
+await load_cogs()
 
 GUILD_ID = 1452643657931821059  # ID deines Discord-Servers
 
