@@ -40,14 +40,17 @@ async def load_cogs():
 
 @bot.event
 async def on_ready():
-    print(F.GREEN + f"Logged in as {F.CYAN}{bot.user}" + R)
+    print(f"Logged in as {bot.user}")
 
 async def main():
-    await load_cogs()
+    print("Bot starting...")
     token = os.getenv("DISCORD_TOKEN")
+
     if not token:
-        print(F.RED + "DISCORD_TOKEN not set!" + R)
-        return
+        print("ERROR: DISCORD_TOKEN not set")
+        while True:
+            await asyncio.sleep(60)
+
     await bot.start(token)
 
 if __name__ == "__main__":
