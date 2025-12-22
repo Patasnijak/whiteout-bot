@@ -38,21 +38,18 @@ async def load_cogs():
         except Exception as e:
             print(f"Failed to load cog {cog}: {e}")
 
+GUILD_ID = 1452643657931821059  # ID deines Discord-Servers
+
 @bot.event
 async def on_ready():
-    # Lade die Cogs
     await load_cogs()
-
-    # Sync alle Slash-Commands global (oder nur für bestimmte Guilds)
+    guild = discord.Object(id=GUILD_ID)
     try:
-        synced = await bot.tree.sync()  # global sync
-        print(f"Synced {len(synced)} commands.")
+        synced = await bot.tree.sync(guild=guild)
+        print(f"Synced {len(synced)} commands for test server.")
     except Exception as e:
         print(f"Error syncing commands: {e}")
-
     print(f"Logged in as {bot.user}")
-
-
 
 
 async def main():
