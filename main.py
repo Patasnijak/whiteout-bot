@@ -40,8 +40,18 @@ async def load_cogs():
 
 @bot.event
 async def on_ready():
+    # Lade die Cogs
     await load_cogs()
+
+    # Sync alle Slash-Commands global (oder nur für bestimmte Guilds)
+    try:
+        synced = await bot.tree.sync()  # global sync
+        print(f"Synced {len(synced)} commands.")
+    except Exception as e:
+        print(f"Error syncing commands: {e}")
+
     print(f"Logged in as {bot.user}")
+
 
 
 
