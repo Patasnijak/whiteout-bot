@@ -31,26 +31,18 @@ def create_tables():
 create_tables()
 
 async def load_cogs():
-    cogs = ["olddb", "control", "alliance"]  # Nur die 3 Cogs, die du hast
-    failed_cogs = []
-
+    cogs = ["olddb", "control", "alliance"]
     for cog in cogs:
         try:
             await bot.load_extension(f"cogs.{cog}")
-            print(f"✓ Loaded cog: {cog}")
         except Exception as e:
-            print(f"✗ Failed to load cog {cog}: {e}")
-            failed_cogs.append(cog)
-
-    if failed_cogs:
-        print(f"\n⚠️ {len(failed_cogs)} cog(s) failed to load: {', '.join(failed_cogs)}")
-        print("The bot will continue with reduced functionality.")
-
+            print(f"Failed to load cog {cog}: {e}")
 
 @bot.event
 async def on_ready():
-    await bot.tree.sync()
+    await load_cogs()
     print(f"Logged in as {bot.user}")
+
 
 
 async def main():
