@@ -31,7 +31,7 @@ def create_tables():
 create_tables()
 
 async def load_cogs():
-    cogs = ["olddb", "control", "alliance"]
+    cogs = ["olddb", "control", "alliance", "help"]
     for cog in cogs:
         try:
             await bot.load_extension(f"cogs.{cog}")
