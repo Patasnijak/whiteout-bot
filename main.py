@@ -1,65 +1,41 @@
-
+import os
 import discord
 from discord.ext import commands
-import os
-import sqlite3
 import asyncio
-from colorama import Fore as F, Style as R, init
 
-init(autoreset=True)
+# Intents für deinen Bot
 intents = discord.Intents.default()
 intents.message_content = True
-bot = commands.Bot(command_prefix="/", intents=intents)
+intents.members = True
 
-if not os.path.exists("db"):
-    os.makedirs("db")
-databases = {
-    "conn_alliance": "db/alliance.sqlite",
-    "conn_giftcode": "db/giftcode.sqlite",
-    "conn_changes": "db/changes.sqlite",
-    "conn_users": "db/users.sqlite",
-    "conn_settings": "db/settings.sqlite",
-}
-connections = {name: sqlite3.connect(path) for name, path in databases.items()}
+# Bot erstellen
+bot = commands.Bot(command_prefix="!", intents=intents)
 
-def create_tables():
-    with connections["conn_changes"] as conn:
-        conn.execute("CREATE TABLE IF NOT EXISTS nickname_changes (id INTEGER PRIMARY KEY AUTOINCREMENT, fid INTEGER, old_nickname TEXT, new_nickname TEXT, change_date TEXT)")
-    with connections["conn_users"] as conn:
-        conn.execute("CREATE TABLE IF NOT EXISTS users (fid INTEGER PRIMARY KEY, nickname TEXT, furnace_lv INTEGER DEFAULT 0, kid INTEGER, stove_lv_content TEXT, alliance TEXT)")
-
-create_tables()
-
+# Funktion zum Laden der Cogs
 async def load_cogs():
-   cogs = ["olddb", "control", "alliance", "help"]
-
-async def load_cogs():
+    cogs = ["olddb", "control", "alliance"]  # Cogs müssen im Ordner cogs liegen
     for cog in cogs:
         try:
             await bot.load_extension(f"cogs.{cog}")
+            print(f"Cog {cog} erfolgreich geladen.")
         except Exception as e:
-            print(f"Failed to load cog {cog}: {e}")
+            print(f"Fehler beim Laden von {cog}: {e}")
 
-# im Hauptteil des Codes
-await load_cogs()
-
-GUILD_ID = 1452643657931821059  # ID deines Discord-Servers
-
+# Event wenn Bot bereit ist
 @bot.event
 async def on_ready():
-    await bot.tree.sync()  # synchronisiert alle Slash-Commands
-    print(f"Logged in as {bot.user}")
+    print(f"Bot eingeloggt als {bot.user}")
+    print("Slash-Commands und Cogs sollten jetzt verfügbar sein.")
 
+# Hauptfunktion für async Start
 async def main():
-    print("Bot starting...")
-    token = os.getenv("DISCORD_TOKEN")
+    await load_cogs()
+    TOKEN = os.environ.get("BOT_TOKEN")
+    if TOKEN is None:
+        print("Fehler: BOT_TOKEN nicht als Environment Variable gesetzt!")
+        return
+    await bot.start(TOKEN)
 
-    if not token:
-        print("ERROR: DISCORD_TOKEN not set")
-        while True:
-            await asyncio.sleep(60)
-
-    await bot.start(token)
-
+# asyncio Loop starten
 if __name__ == "__main__":
     asyncio.run(main())
