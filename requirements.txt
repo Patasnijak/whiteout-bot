@@ -1,5 +1,7 @@
 
 discord.py==2.6.3
+python-dotenv
+aiohttp
 colorama==0.4.6
 aiosqlite==0.19.0
 
