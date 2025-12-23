@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 import os
 from dotenv import load_dotenv
+import asyncio
 
 # Load token from .env
 load_dotenv()
@@ -12,17 +13,15 @@ intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="/", intents=intents)
 
-# Load cogs
-cogs = ["cogs.olddb", "cogs.control", "cogs.alliance"]
+async def load_all_cogs():
+    cogs = ["cogs.olddb", "cogs.control", "cogs.alliance"]
+    for cog in cogs:
+        try:
+            await bot.load_extension(cog)
+            print(f"✅ Loaded cog: {cog}")
+        except Exception as e:
+            print(f"❌ Failed to load cog {cog}: {e}")
 
-for cog in cogs:
-    try:
-        bot.load_extension(cog)
-        print(f"✅ Loaded cog: {cog}")
-    except Exception as e:
-        print(f"❌ Failed to load cog {cog}: {e}")
-
-# Run the bot
 @bot.event
 async def on_ready():
     print(f"🤖 Logged in as {bot.user}")
@@ -32,4 +31,9 @@ async def on_ready():
     except Exception as e:
         print(f"❌ Failed to sync commands: {e}")
 
-bot.run(TOKEN)
+async def main():
+    await load_all_cogs()
+    await bot.start(TOKEN)
+
+# Run the bot
+asyncio.run(main())
