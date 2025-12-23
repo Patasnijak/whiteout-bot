@@ -1,47 +1,46 @@
 import discord
-from discord.ext import commands
-from discord import Intents
-from dotenv import load_dotenv
+from discord.ext import commands, tasks
+from discord import app_commands
 import os
+from dotenv import load_dotenv
 import asyncio
 
-# .env laden
+# Token laden
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
 
-# Intents definieren
-intents = Intents.default()
+# Intents
+intents = discord.Intents.default()
 intents.message_content = True
-intents.members = True  # Für Mitgliederinformationen
+intents.members = True
 
-# Bot erstellen
-bot = commands.Bot(
-    command_prefix="/",
-    intents=intents,
-    help_command=None  # Eigenes Help-System
-)
+# Bot-Objekt
+bot = commands.Bot(command_prefix="!", intents=intents)
 
-# Cog-Liste
-COGS = ["cogs.olddb", "cogs.control", "cogs.alliance"]
-
+# Asynchron Cogs laden
 async def load_cogs():
-    for cog in COGS:
+    cogs = ["cogs.olddb", "cogs.control", "cogs.alliance"]
+    for cog in cogs:
         try:
             await bot.load_extension(cog)
             print(f"✅ Loaded cog: {cog}")
         except Exception as e:
             print(f"Failed to load cog {cog}: {e}")
 
+# Event: Bot ready
 @bot.event
 async def on_ready():
-    print(f"🤖 Logged in as {bot.user}")
-    # Slash Commands syncen
-    synced = await bot.tree.sync()
-    print(f"🔄 Synced {len(synced)} slash commands!")
+    print(f"🤖 Logged in als {bot.user}")
+    try:
+        synced = await bot.tree.sync()
+        print(f"🔄 Synced {len(synced)} slash commands!")
+    except Exception as e:
+        print(f"Fehler beim Sync: {e}")
 
+# Entry Point
 async def main():
-    await load_cogs()
-    await bot.start(TOKEN)
+    async with bot:
+        await load_cogs()
+        await bot.start(TOKEN)
 
-# asyncio-Event-Loop starten
 asyncio.run(main())
