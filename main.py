@@ -1,38 +1,44 @@
+# main.py
 import discord
 from discord.ext import commands
-from discord import app_commands
-import os
 from dotenv import load_dotenv
+import os
+import asyncio
 
-# Load environment variables
+# Lade die .env Datei
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
 
-# Intents
+# Intents setzen
 intents = discord.Intents.default()
-intents.members = True  # falls du Mitgliederdaten brauchst
+intents.message_content = True  # nötig für Text-Commands
+intents.members = True          # nötig für Member-bezogene Events
 
-# Bot Setup
-bot = commands.Bot(command_prefix="!", intents=intents)
+# Bot-Instanz
+bot = commands.Bot(command_prefix="/", intents=intents)
 
-# Funktion zum Laden der Cogs
-async def load_all_cogs():
+# Funktion zum Laden aller Cogs
+async def load_cogs():
     cogs = ["cogs.olddb", "cogs.control", "cogs.alliance"]
     for cog in cogs:
         try:
             await bot.load_extension(cog)
             print(f"✅ Loaded cog: {cog}")
         except Exception as e:
-            print(f"❌ Failed to load cog {cog}: {e}")
+            print(f"Failed to load cog {cog}: {e}")
 
-# On Ready Event
+# Event: Bot bereit
 @bot.event
 async def on_ready():
     print(f"🤖 Logged in as {bot.user}")
-    await load_all_cogs()
-    # Sync Slash Commands
+    # Slash-Commands synchronisieren
     synced = await bot.tree.sync()
     print(f"🔄 Synced {len(synced)} slash commands!")
 
-# Run the bot
-bot.run(TOKEN)
+# Start-Funktion
+async def main():
+    await load_cogs()
+    await bot.start(TOKEN)
+
+# Python 3.11+ kompatibel
+asyncio.run(main())
