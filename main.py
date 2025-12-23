@@ -1,38 +1,46 @@
-import os
 import discord
 from discord.ext import commands
+import os
 import asyncio
 
 intents = discord.Intents.default()
-intents.message_content = True
+intents.members = True  # Für Member-bezogene Funktionen
+bot = commands.Bot(command_prefix="/", intents=intents)
 
-bot = commands.Bot(command_prefix="!", intents=intents)
-
-COGS = ["olddb", "control", "alliance"]
-
+# ----------------------------
+# Funktion zum Laden aller Cogs
+# ----------------------------
 async def load_cogs():
-    for cog in COGS:
+    cogs = ["cogs.olddb", "cogs.control", "cogs.alliance"]
+    for cog in cogs:
         try:
-            await bot.load_extension(f"cogs.{cog}")
-            print(f"✅ Loaded cog: {cog}")
+            bot.load_extension(cog)
+            print(f"✅ Loaded cog: {cog.split('.')[-1]}")
         except Exception as e:
-            print(f"❌ Failed to load {cog}: {e}")
+            print(f"❌ Failed to load cog {cog}: {e}")
 
+# ----------------------------
+# Bot-Events
+# ----------------------------
 @bot.event
 async def on_ready():
     print(f"🤖 Logged in as {bot.user}")
-    print("🔄 Syncing slash commands...")
-    await bot.tree.sync()
-    print("✅ Slash commands synced!")
+    try:
+        synced = await bot.tree.sync()  # Slash commands synchronisieren
+        print(f"🔄 Synced {len(synced)} slash commands!")
+    except Exception as e:
+        print(f"❌ Failed to sync slash commands: {e}")
 
+# ----------------------------
+# Main starten
+# ----------------------------
 async def main():
     await load_cogs()
-
-    token = os.environ.get("DISCORD_TOKEN")
-    if not token:
-        raise RuntimeError("DISCORD_TOKEN fehlt als Environment Variable")
-
+    token = os.getenv("DISCORD_TOKEN")  # Token aus Railway/Environment Variable
     await bot.start(token)
 
+# ----------------------------
+# Script starten
+# ----------------------------
 if __name__ == "__main__":
     asyncio.run(main())
