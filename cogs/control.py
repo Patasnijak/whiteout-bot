@@ -1,39 +1,24 @@
-import sqlite3
+import discord
 from discord import app_commands
 from discord.ext import commands
-
-DB_PATH = "db/players.db"  # Pfad zu deiner DB, passe ggf. an
+import sqlite3
 
 class Control(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    # /fid add <ID>
-    @app_commands.command(name="add", description="Füge eine Spieler-ID hinzu")
-    @app_commands.describe(fid="Die Spieler-ID, die hinzugefügt werden soll")
-    async def fid_add(self, interaction, fid: int):
-        try:
-            # Verbindung zur DB
-            conn = sqlite3.connect(DB_PATH)
-            cursor = conn.cursor()
+    # /setprefix
+    @app_commands.command(name="setprefix", description="Setze ein neues Bot-Prefix für den Server")
+    async def setprefix(self, interaction: discord.Interaction, prefix: str):
+        db_path = "db/control.sqlite"
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
 
-            # Tabelle erstellen, falls nicht existiert
-            cursor.execute("""
-            CREATE TABLE IF NOT EXISTS players (
-                fid INTEGER PRIMARY KEY,
-                discord_id INTEGER
-            )
-            """)
+        cursor.execute("INSERT OR REPLACE INTO settings (guild_id, prefix) VALUES (?, ?)", (interaction.guild.id, prefix))
+        conn.commit()
+        conn.close()
 
-            # Spieler-ID eintragen
-            cursor.execute("INSERT OR REPLACE INTO players (fid, discord_id) VALUES (?, ?)", 
-                           (fid, interaction.user.id))
-            conn.commit()
-            conn.close()
-
-            await interaction.response.send_message(f"✅ Spieler-ID `{fid}` erfolgreich registriert für {interaction.user.mention}!")
-        except Exception as e:
-            await interaction.response.send_message(f"❌ Fehler beim Speichern der ID: {e}")
+        await interaction.response.send_message(f"✅ Prefix wurde auf `{prefix}` gesetzt!")
 
 async def setup(bot):
     await bot.add_cog(Control(bot))
