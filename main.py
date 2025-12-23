@@ -1,5 +1,6 @@
 import discord
 from discord.ext import commands
+from discord import Intents
 from dotenv import load_dotenv
 import os
 import asyncio
@@ -8,38 +9,39 @@ import asyncio
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
 
-# Bot-Intents
-intents = discord.Intents.default()
-intents.message_content = True  # Falls du Nachrichten-Inhalte brauchst
-intents.members = True
+# Intents definieren
+intents = Intents.default()
+intents.message_content = True
+intents.members = True  # Für Mitgliederinformationen
 
-bot = commands.Bot(command_prefix="/", intents=intents)
+# Bot erstellen
+bot = commands.Bot(
+    command_prefix="/",
+    intents=intents,
+    help_command=None  # Eigenes Help-System
+)
 
-# Alte Commands sauber entfernen
-@bot.event
-async def on_ready():
-    # Alte globale Commands entfernen
-    synced = await bot.tree.sync()
-    print(f"✅ Bot ready! Logged in as {bot.user}")
-    print(f"🔄 Synced {len(synced)} slash commands!")
+# Cog-Liste
+COGS = ["cogs.olddb", "cogs.control", "cogs.alliance"]
 
-# Funktion zum Laden aller Cogs
 async def load_cogs():
-    cogs = ["cogs.olddb", "cogs.control", "cogs.alliance"]
-    for cog in cogs:
+    for cog in COGS:
         try:
             await bot.load_extension(cog)
             print(f"✅ Loaded cog: {cog}")
-        except commands.CommandAlreadyRegistered:
-            print(f"⚠ Command already registered in {cog}, skipping...")
         except Exception as e:
-            print(f"❌ Failed to load cog {cog}: {e}")
+            print(f"Failed to load cog {cog}: {e}")
 
-# Hauptfunktion zum Starten
+@bot.event
+async def on_ready():
+    print(f"🤖 Logged in as {bot.user}")
+    # Slash Commands syncen
+    synced = await bot.tree.sync()
+    print(f"🔄 Synced {len(synced)} slash commands!")
+
 async def main():
-    async with bot:
-        await load_cogs()
-        await bot.start(TOKEN)
+    await load_cogs()
+    await bot.start(TOKEN)
 
-# Run bot
+# asyncio-Event-Loop starten
 asyncio.run(main())
