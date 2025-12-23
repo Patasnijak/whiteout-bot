@@ -1,46 +1,77 @@
 import discord
-from discord.ext import commands
 from discord import app_commands
+from discord.ext import commands
 import sqlite3
-from datetime import datetime
+import os
 
-DB_PATH = "db/fids.db"
+DB_PATH = "db/wos.db"
 
 class Control(commands.Cog):
-    def __init__(self, bot):
+    def __init__(self, bot: commands.Bot):
         self.bot = bot
+        self.init_db()
 
-    @app_commands.command(name="fid_add", description="Füge einem User eine Whiteout FID hinzu")
-    @app_commands.describe(member="Discord User", fid="Whiteout Survival FID")
-    async def fid_add(self, interaction: discord.Interaction, member: discord.Member, fid: int):
-
-        if not interaction.user.guild_permissions.administrator:
-            await interaction.response.send_message(
-                "❌ Nur Admins dürfen diesen Command nutzen.",
-                ephemeral=True
-            )
-            return
-
+    def init_db(self):
+        os.makedirs("db", exist_ok=True)
         conn = sqlite3.connect(DB_PATH)
-        cur = conn.cursor()
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS players (
+                fid INTEGER PRIMARY KEY,
+                name TEXT NOT NULL
+            )
+        """)
+        conn.commit()
+        conn.close()
 
-        cur.execute("""
-            INSERT INTO fids (guild_id, discord_id, fid, created_at)
-            VALUES (?, ?, ?, ?)
-        """, (
-            interaction.guild.id,
-            member.id,
-            fid,
-            datetime.utcnow().isoformat()
-        ))
+    fid = app_commands.Group(
+        name="fid",
+        description="F-ID Verwaltung"
+    )
 
+    @fid.command(name="add", description="F-ID hinzufügen")
+    @app_commands.describe(
+        fid="Die Spieler-FID",
+        name="Name des Spielers"
+    )
+    async def fid_add(
+        self,
+        interaction: discord.Interaction,
+        fid: int,
+        name: str
+    ):
+        conn = sqlite3.connect(DB_PATH)
+        conn.execute(
+            "INSERT OR REPLACE INTO players (fid, name) VALUES (?, ?)",
+            (fid, name)
+        )
         conn.commit()
         conn.close()
 
         await interaction.response.send_message(
-            f"✅ **FID gespeichert**\nUser: {member.mention}\nFID: `{fid}`",
+            f"✅ FID **{fid}** für **{name}** gespeichert.",
             ephemeral=True
         )
 
-async def setup(bot):
+    @fid.command(name="list", description="Alle gespeicherten F-IDs anzeigen")
+    async def fid_list(self, interaction: discord.Interaction):
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.execute("SELECT fid, name FROM players ORDER BY fid")
+        rows = cursor.fetchall()
+        conn.close()
+
+        if not rows:
+            await interaction.response.send_message(
+                "ℹ️ Keine F-IDs gespeichert.",
+                ephemeral=True
+            )
+            return
+
+        msg = "\n".join([f"• `{fid}` → **{name}**" for fid, name in rows])
+
+        await interaction.response.send_message(
+            f"📋 **Gespeicherte Spieler:**\n{msg}",
+            ephemeral=True
+        )
+
+async def setup(bot: commands.Bot):
     await bot.add_cog(Control(bot))
