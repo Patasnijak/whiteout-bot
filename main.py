@@ -8,11 +8,17 @@ import asyncio
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
 
-# Bot setup
+if not TOKEN:
+    raise ValueError("DISCORD_TOKEN not found in .env file!")
+
+# Intents setup
 intents = discord.Intents.default()
-intents.message_content = True
+intents.message_content = True  # für Commands und Events
+
+# Bot setup
 bot = commands.Bot(command_prefix="/", intents=intents)
 
+# Async function to load all cogs
 async def load_all_cogs():
     cogs = ["cogs.olddb", "cogs.control", "cogs.alliance"]
     for cog in cogs:
@@ -22,18 +28,10 @@ async def load_all_cogs():
         except Exception as e:
             print(f"❌ Failed to load cog {cog}: {e}")
 
+# Event: Bot ready
 @bot.event
 async def on_ready():
     print(f"🤖 Logged in as {bot.user}")
     try:
         synced = await bot.tree.sync()
-        print(f"🔄 Synced {len(synced)} slash commands!")
-    except Exception as e:
-        print(f"❌ Failed to sync commands: {e}")
-
-async def main():
-    await load_all_cogs()
-    await bot.start(TOKEN)
-
-# Run the bot
-asyncio.run(main())
+        print(f"🔄 Synced {len(synced)} slash comman
