@@ -10,13 +10,16 @@ import asyncio
 
 API_SECRET = os.getenv("WOS_API_SECRET", "")
 
+# ⚠ Hier die Channel-ID eintragen, wo die Updates gepostet werden
+NOTIFY_CHANNEL_ID = 123456789012345678  # <--- ersetze durch deine Channel-ID
+
 class Control(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.db_path = "db/players.sqlite"
         os.makedirs("db", exist_ok=True)
         self.ensure_db()
-        self.track_names.start()
+        self.track_names.start()  # Task starten
 
     def ensure_db(self):
         conn = sqlite3.connect(self.db_path)
@@ -83,9 +86,10 @@ class Control(commands.Cog):
                 new_name = data.get("nickname") or old_name
                 if new_name != old_name:
                     cursor.execute("UPDATE players SET name=? WHERE fid=?", (new_name, fid))
-                    # Optional: Discord-Benachrichtigung an bestimmten Channel
-                    # channel = self.bot.get_channel(DEIN_CHANNEL_ID)
-                    # await channel.send(f"Spieler `{old_name}` hat seinen Namen zu `{new_name}` geändert!")
+                    # 🔔 Nachricht an Discord-Channel senden
+                    channel = self.bot.get_channel(NOTIFY_CHANNEL_ID)
+                    if channel:
+                        await channel.send(f"🔄 Spieler **{old_name}** hat seinen Namen zu **{new_name}** geändert!")
         conn.commit()
         conn.close()
 
