@@ -1,26 +1,24 @@
 import discord
 from discord import app_commands
-from discord.ext import commands
+from discord.ext import commands, tasks
 import aiohttp
 import sqlite3
 import time
 import hashlib
 import os
+import asyncio
 
-# 🚧 EXPERIMENTELLER SECRET KEY (falls nötig)
-# Du kannst ihn in Railway als Environment Variable setzen:
-# z.B. WOS_API_SECRET=abcdef…
 API_SECRET = os.getenv("WOS_API_SECRET", "")
 
 class Control(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.db_path = "db/players.sqlite"
+        os.makedirs("db", exist_ok=True)
         self.ensure_db()
+        self.track_names.start()
 
     def ensure_db(self):
-        """Stellt sicher, dass die DB und die Tabelle existieren."""
-        os.makedirs("db", exist_ok=True)
         conn = sqlite3.connect(self.db_path)
         conn.execute("""
             CREATE TABLE IF NOT EXISTS players (
@@ -34,17 +32,10 @@ class Control(commands.Cog):
         conn.close()
 
     async def fetch_from_api(self, fid: int):
-        """
-        Holt Spielerdaten über den experimentellen API‑Endpoint.
-        Liefert None, wenn Fehler oder keine Daten.
-        """
         url = "https://wos-giftcode-api.centurygame.com/api/player"
-
-        # Signatur: md5("fid=…&time=…" + secret)
         t = int(time.time() * 1000)
         form_str = f"fid={fid}&time={t}"
         sign = hashlib.md5((form_str + API_SECRET).encode()).hexdigest()
-
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(url, data={"sign": sign, "fid": fid, "time": t}, timeout=15) as resp:
@@ -57,31 +48,16 @@ class Control(commands.Cog):
             return None
 
     @app_commands.command(name="fid_add", description="Hole Spielerdaten anhand FID und speichere sie.")
-    @app_commands.describe(fid="Die Spieler‑FID")
+    @app_commands.describe(fid="Die Spieler-FID")
     async def fid_add(self, interaction: discord.Interaction, fid: int):
-        # Zeige Loading‑Hinweis
         await interaction.response.defer(ephemeral=True)
-
-        # API abfragen
         data = await self.fetch_from_api(fid)
         if not data:
-            await interaction.followup.send(
-                f"❌ Konnte keine Daten für FID `{fid}` abrufen.",
-                ephemeral=True
-            )
+            await interaction.followup.send(f"❌ Konnte keine Daten für FID `{fid}` abrufen.", ephemeral=True)
             return
-
-        # Versuche Felder zu lesen (Fallbacks)
-        name = data.get("nickname") or data.get("name") or data.get("playerName") or "Unbekannt"
-        furnace = (
-            data.get("furnace_lv") or
-            data.get("furnaceLevel") or
-            data.get("furnace") or
-            0
-        )
-        alliance = data.get("alliance") or data.get("allianceName") or "Keine Allianz"
-
-        # Daten speichern
+        name = data.get("nickname") or "Unbekannt"
+        furnace = data.get("furnace_lv") or 0
+        alliance = data.get("alliance") or "Keine Allianz"
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         cursor.execute("""
@@ -90,16 +66,28 @@ class Control(commands.Cog):
         """, (fid, name, furnace, alliance))
         conn.commit()
         conn.close()
-
-        # Ergebnis ausgeben
         await interaction.followup.send(
-            f"✅ **Spielerdaten gespeichert:**\n"
-            f"• **FID:** {fid}\n"
-            f"• **Name:** {name}\n"
-            f"• **Furnace Level:** {furnace}\n"
-            f"• **Allianz:** {alliance}",
+            f"✅ **Spielerdaten gespeichert:**\n• **FID:** {fid}\n• **Name:** {name}\n• **Furnace Level:** {furnace}\n• **Allianz:** {alliance}",
             ephemeral=True
         )
 
+    @tasks.loop(minutes=10)
+    async def track_names(self):
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute("SELECT fid, name FROM players")
+        rows = cursor.fetchall()
+        for fid, old_name in rows:
+            data = await self.fetch_from_api(fid)
+            if data:
+                new_name = data.get("nickname") or old_name
+                if new_name != old_name:
+                    cursor.execute("UPDATE players SET name=? WHERE fid=?", (new_name, fid))
+                    # Optional: Discord-Benachrichtigung an bestimmten Channel
+                    # channel = self.bot.get_channel(DEIN_CHANNEL_ID)
+                    # await channel.send(f"Spieler `{old_name}` hat seinen Namen zu `{new_name}` geändert!")
+        conn.commit()
+        conn.close()
+
 async def setup(bot):
-    bot.add_cog(Control(bot))  # ⚠ kein await!
+    await bot.add_cog(Control(bot))  # ✅ Korrekt: await
