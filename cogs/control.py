@@ -7,9 +7,7 @@ import time
 import hashlib
 import os
 
-# Wenn du die experimental API nutzt, brauchst du oft einen "secret" key.
-# Viele WoS reverse-engineered Tools nutzen diesen in Anfragen.
-# Standard ist leer — du kannst ihn später anpassen.
+# Optional: Experimenteller Secret-Key (falls nötig)
 API_SECRET = os.getenv("WOS_API_SECRET", "")
 
 class Control(commands.Cog):
@@ -19,6 +17,7 @@ class Control(commands.Cog):
         self.ensure_db()
 
     def ensure_db(self):
+        # Erstellt DB, wenn nicht existiert
         os.makedirs("db", exist_ok=True)
         conn = sqlite3.connect(self.db_path)
         conn.execute("""
@@ -33,45 +32,47 @@ class Control(commands.Cog):
 
     async def fetch_from_api(self, fid: int):
         """
-        Experimenteller API‑Call.
-        Versucht mit Giftcode-API Daten zu holen.
+        Experimentelle API‑Abfrage über Giftcode‑Endpoint.
+        Rückgabe ist JSON oder None.
         """
-        # Endpoint, der in der Community als experimentell beschrieben ist
         url = "https://wos-giftcode-api.centurygame.com/api/player"
-
-        # Zeit und Sign generieren
         t = int(time.time() * 1000)
         form_str = f"fid={fid}&time={t}"
         sign = hashlib.md5((form_str + API_SECRET).encode()).hexdigest()
 
-        async with aiohttp.ClientSession() as session:
-            try:
+        try:
+            async with aiohttp.ClientSession() as session:
                 async with session.post(url, data={"sign": sign, "fid": fid, "time": t}) as resp:
                     if resp.status == 200:
                         return await resp.json()
                     return None
-            except Exception as e:
-                print(f"[WOS API] Request Failed: {e}")
-                return None
+        except Exception:
+            return None
 
-    @app_commands.command(name="fid_add", description="Experimentell alle Daten zu einer FID abrufen und speichern")
-    @app_commands.describe(fid="Die Spieler FID")
+    @app_commands.command(name="fid_add", description="Spieler anhand FID automatisch holen und speichern")
+    @app_commands.describe(fid="FID des Spielers")
     async def fid_add(self, interaction: discord.Interaction, fid: int):
         await interaction.response.defer(ephemeral=True)
 
-        # API Daten holen
+        # API‑Abfrage
         data = await self.fetch_from_api(fid)
 
-        # Wenn die API nichts zurückgibt → fallback
+        # Wenn keine Antwort
         if not data:
-            await interaction.followup.send(f"❌ Keine Daten von der API für FID `{fid}`.")
+            await interaction.followup.send(f"❌ Keine Daten von der API für FID `{fid}` gefunden.")
             return
 
-        # Versuchen aus Antwort Werte zu holen
-        name = data.get("nickname") or data.get("name") or "Unbekannt"
-        furnace = data.get("furnace_lv") or data.get("furnaceLevel") or 0
+        # Name & Furnace Level aus Antwort versuchen
+        # Unterschiedliche Keys möglich je nach Endpunkt: nickname, name, playerName, furnace_lv ...
+        name = data.get("nickname") or data.get("name") or data.get("playerName") or "Unbekannt"
+        furnace = (
+            data.get("furnace_lv") or
+            data.get("furnaceLevel") or
+            data.get("furnace") or
+            0
+        )
 
-        # In SQLite speichern
+        # Speichern in DB
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         cursor.execute("""
@@ -82,9 +83,9 @@ class Control(commands.Cog):
         conn.close()
 
         await interaction.followup.send(
-            f"✅ FID `{fid}` gespeichert!\n"
-            f"• Name: `{name}`\n"
-            f"• Furnace Level: `{furnace}`"
+            f"✅ Daten für FID `{fid}` gespeichert:\n"
+            f"• **Name:** {name}\n"
+            f"• **Furnace Level:** {furnace}"
         )
 
 async def setup(bot):
